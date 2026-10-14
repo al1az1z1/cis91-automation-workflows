@@ -1,0 +1,124 @@
+{
+  "name": "Hello World - Ali Azizi",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -400,
+        -32
+      ],
+      "id": "7fea53ba-de40-4895-8300-f4c901fe0bd8",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "06625c0d-b62b-4319-9c2b-28f28bb6f361",
+              "name": "student_name",
+              "value": "Ali Azizi",
+              "type": "string"
+            },
+            {
+              "id": "a0f4a640-b468-4cd3-ac14-d056c7d331c2",
+              "name": "course",
+              "value": "CIS 91 - Agentic Automation",
+              "type": "string"
+            },
+            {
+              "id": "51f9489d-6e9e-4cc3-9f00-ebc82dc82350",
+              "name": "message",
+              "value": "Hello from n8n!",
+              "type": "string"
+            },
+            {
+              "id": "32a3cd5d-d9ae-4804-9c11-794024451e1a",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -208,
+        -176
+      ],
+      "id": "bb51f3a7-2ad8-43e2-be39-2a854731a869",
+      "name": "Student Info"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "3f5619ba-0379-4181-80c5-8296516bdd46",
+              "name": "greeting",
+              "value": "={{ \"Welcome, \" + $json.student_name + \"! You are enrolled in \" + $json.course + \". Today is \" + $json.timestamp.substring(0, 10) + \".\" }}",
+              "type": "string"
+            },
+            {
+              "id": "5fee136e-521e-47f6-88de-60f7ccc211e1",
+              "name": "=word_count",
+              "value": "={{ $json.message.split(' ').length }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": "={{ \"Welcome, \" + $json.student_name + \"! You are enrolled in \" + $json.course + \". Today is \" + $json.timestamp.substring(0, 10) + \".\" }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        16,
+        -176
+      ],
+      "id": "b92702e5-abac-4177-91d3-34d76cdb08b5",
+      "name": "Format Greeting"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Student Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Student Info": {
+      "main": [
+        [
+          {
+            "node": "Format Greeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "595f906c-7d20-46a1-b787-c520e0cf8ede",
+  "meta": {
+    "instanceId": "74ee99bc740c6dac711ced63f616b978808d56ad1bdf9d964ab20472df081c38"
+  },
+  "nodeGroups": [],
+  "id": "cE75yzbx9FuLxly8",
+  "tags": []
+}

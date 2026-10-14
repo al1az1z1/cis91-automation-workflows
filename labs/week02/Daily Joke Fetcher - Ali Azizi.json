@@ -1,0 +1,125 @@
+{
+  "name": "Daily Joke Fetcher - Ali Azizi",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.4,
+      "position": [
+        -560,
+        -64
+      ],
+      "id": "886ce135-930e-4db1-b2d6-aafd62ba2aca",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "url": "https://icanhazdadjoke.com/",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -304,
+        -64
+      ],
+      "id": "d928ab0b-1621-4f80-83d5-d8422dcc8a9b",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "319d533d-1fe6-4302-9542-f496c5e06445",
+              "name": "joke",
+              "value": "={{ $json.joke }}",
+              "type": "string"
+            },
+            {
+              "id": "76dfca77-7a98-4904-adda-d43c8165d278",
+              "name": "joke_id",
+              "value": "={{ $json.id }}",
+              "type": "string"
+            },
+            {
+              "id": "06e6570e-41e5-4d92-8fa6-d644e8c89d29",
+              "name": "fetched_at",
+              "value": "={{ $now.format('yyyy-MM-dd HH:mm:ss') }}",
+              "type": "string"
+            },
+            {
+              "id": "59fe2c2b-a260-4fb0-aa84-8eb4d6a90ac7",
+              "name": "status",
+              "value": "={{ $json.status === 200 ? 'Success' : 'Error' }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -80,
+        -64
+      ],
+      "id": "764c82e4-fd4f-4191-98f8-0fdaf97991da",
+      "name": "Format Output"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Format Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "cb14ef0b-7381-4f60-ad0e-d7c6849f6a50",
+  "meta": {
+    "instanceId": "74ee99bc740c6dac711ced63f616b978808d56ad1bdf9d964ab20472df081c38"
+  },
+  "nodeGroups": [],
+  "id": "QtCzAK7YlO0PjnU1",
+  "tags": []
+}
