@@ -1,0 +1,435 @@
+{
+  "name": "AA - Midterm Auto-Responder",
+  "nodes": [
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "9e6e70eb-3655-4d0b-82cd-6e964b96366a",
+              "name": "sender",
+              "value": "={{ $json.body?.sender || $json.sender || 'unknown@student.edu' }}",
+              "type": "string"
+            },
+            {
+              "id": "610c48d5-eee0-45b4-9ad2-9b361514121c",
+              "name": "subject",
+              "value": "={{ $json.body?.subject || $json.subject || 'General Inquiry' }}",
+              "type": "string"
+            },
+            {
+              "id": "476a90e9-aaf2-4274-8593-d9e3681acce7",
+              "name": "message",
+              "value": "={{ $json.body?.message || $json.message || '' }}",
+              "type": "string"
+            },
+            {
+              "id": "10295d98-19c9-4448-a1a2-f87fcf8cb387",
+              "name": "timestamp",
+              "value": "={{ $now.toISO() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "1d23589b-e10c-437b-a86a-bd05befd4d7e",
+      "name": "Normalize Input",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        240,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an intake triage classifier for the CIS 91 College Course & IT Help Desk.\nClassify the incoming message into ONE of these 5 categories:\n- \"course_question\" (assignments, labs, syllabus, due dates, n8n workflow steps)\n- \"grade_inquiry\" (scores, rubric points, missing grades, regrade requests)\n- \"deadline_extension\" (late submissions, illness/emergency extensions, Canvas lock dates)\n- \"technical_issue\" (OpenRouter API keys, WSL2/CLI errors, n8n server login, webhooks)\n- \"general_inquiry\" (office hours, tutoring, unrelated or out-of-scope questions)\n\nSender: {{ $json.sender }}\nSubject: {{ $json.subject }}\nMessage: {{ $json.message }}\n\nReturn structured JSON with category, confidence (0.0 to 1.0), and a brief reasoning.",
+        "hasOutputParser": true,
+        "messages": {
+          "messageValues": []
+        }
+      },
+      "id": "4a98d1a4-f020-4e6d-b978-99bd8ded51ef",
+      "name": "Classify Message",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        480,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "options": {
+          "temperature": 0
+        }
+      },
+      "id": "e30d2e29-4e66-44a5-91f4-321b513fef66",
+      "name": "Classifier Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        432,
+        528
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "iDmE3I5vCWR1eQyl",
+          "name": "AA OpenRouter"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsonSchemaExample": {
+          "category": "technical_issue",
+          "confidence": 0.94,
+          "reasoning": "The student is asking how to configure their OpenRouter API key in n8n."
+        }
+      },
+      "id": "b7afa1dc-36d9-44ad-b93a-1f421ca81d98",
+      "name": "Classification Parser",
+      "type": "@n8n/n8n-nodes-langchain.outputParserStructured",
+      "typeVersion": 1.2,
+      "position": [
+        592,
+        528
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const input = $('Normalize Input').item.json;\nconst classification = $json.output || $json;\n\nconst knowledgeBase = [\n  { id: 'KB-01', category: 'course_question', keywords: ['github', 'export', 'json', 'submit', 'folder'], question: 'How do I submit my n8n workflow JSON?', answer: 'Export your workflow from n8n via Menu -> Download, save the JSON file into the designated folder in your GitHub repository (e.g., midterm/ or labs/), and include both the GitHub URL and n8n workflow URL in your Canvas submission.' },\n  { id: 'KB-02', category: 'course_question', keywords: ['workflow', 'name', 'initials', 'publish', 'activate'], question: 'How should I name workflows and should I publish them?', answer: 'Prefix all workflow names with your initials (e.g., \"AA - Workflow Name\") and leave workflows unpublished/inactive unless specifically instructed to test a schedule trigger.' },\n  { id: 'KB-03', category: 'course_question', keywords: ['data table', 'column', 'map', 'insert', 'schema'], question: 'Why does my Data Table node fail with unknown column name?', answer: 'When using Map Automatically, every incoming JSON field name must match a Data Table column name character-for-character in lowercase with underscores.' },\n  { id: 'KB-04', category: 'grade_inquiry', keywords: ['grade', 'score', 'points', 'rubric', 'graded'], question: 'When are labs and projects graded and how is partial credit awarded?', answer: 'Assignments are graded within 5 business days after the due date using the Canvas rubric. Partial credit is awarded for working components even if downstream nodes have minor issues.' },\n  { id: 'KB-05', category: 'grade_inquiry', keywords: ['regrade', 'missing', 'zero', 'incorrect', 'review'], question: 'What if I believe my assignment was graded incorrectly?', answer: 'Reply directly in the Canvas submission comment box within 7 days of grade posting with your workflow URL and a brief note explaining which rubric item you would like re-reviewed.' },\n  { id: 'KB-06', category: 'deadline_extension', keywords: ['late', 'extension', 'deadline', 'due', 'sick', 'emergency'], question: 'Can I request a deadline extension for a lab or project?', answer: 'Students may request a 48-hour grace extension before the assignment lock date by messaging the instructor with their current progress. Midterm and Final projects require documented emergencies after the due date.' },\n  { id: 'KB-07', category: 'deadline_extension', keywords: ['locked', 'closed', 'past due', 'reopen'], question: 'Canvas says the assignment is locked. Can I still submit?', answer: 'Once the Canvas availability window locks, submissions close automatically. Contact the instructor via Canvas Inbox with your GitHub commit timestamp to request an unlock.' },\n  { id: 'KB-08', category: 'technical_issue', keywords: ['openrouter', 'api key', 'credential', 'vibe', 'model'], question: 'How do I set up my OpenRouter API key in n8n?', answer: 'Retrieve your class OpenRouter key at vibe.edumacation.net/cis091 using the course password, then create an OpenRouter credential in n8n and select model deepseek/deepseek-v4.1-flash-1017.' },\n  { id: 'KB-09', category: 'technical_issue', keywords: ['webhook', 'body', 'post', 'curl', 'undefined'], question: 'Why is my Webhook data coming through as undefined?', answer: 'n8n Webhook triggers nest incoming POST JSON payloads under the \"body\" property. Reference fields using {{ $json.body.message }} instead of {{ $json.message }}.' },\n  { id: 'KB-10', category: 'technical_issue', keywords: ['wsl', 'bash', 'pi', 'terminal', 'n8n_api_key'], question: 'How do I connect pi in WSL2 to the n8n server?', answer: 'Export N8N_API_KEY in your WSL2 ~/.bashrc file, reload with source ~/.bashrc, and run pi --tools bash inside your project directory containing AGENTS.md.' },\n  { id: 'KB-11', category: 'general_inquiry', keywords: ['office hours', 'tutoring', 'help', 'tasc', 'zoom'], question: 'When are office hours and tutoring available?', answer: 'Instructor Zoom office hours are held Tuesdays and Thursdays from 4:00 PM to 5:30 PM, and free peer tutoring is available through College of the Desert TASC Tutoring.' },\n  { id: 'KB-12', category: 'general_inquiry', keywords: ['syllabus', 'software', 'cost', 'account'], question: 'Do I need to pay for n8n or OpenRouter for this course?', answer: 'No. Course-hosted n8n accounts and OpenRouter API keys are provided free of charge to enrolled CIS 91 students for the duration of the semester.' }\n];\n\nconst queryText = `${input.subject} ${input.message}`.toLowerCase();\nconst scored = knowledgeBase.map(entry => {\n  const keywordHits = entry.keywords.filter(kw => queryText.includes(kw)).length;\n  const categoryBonus = entry.category === classification.category ? 1 : 0;\n  return { ...entry, score: keywordHits * 2 + categoryBonus };\n}).filter(e => e.score >= 2).sort((a, b) => b.score - a.score);\n\nconst topMatches = scored.slice(0, 2);\nconst matchedSummary = topMatches.length > 0\n  ? topMatches.map(m => `[${m.id}] ${m.question} -> ${m.answer}`).join('\\n')\n  : 'NO_DIRECT_KB_MATCH';\n\nreturn {\n  json: {\n    ...input,\n    category: classification.category || 'general_inquiry',\n    confidence: classification.confidence ?? 0.5,\n    reasoning: classification.reasoning || '',\n    matched_kb_ids: topMatches.length > 0 ? topMatches.map(m => m.id).join(', ') : 'None',\n    matched_kb_text: matchedSummary\n  }\n};"
+      },
+      "id": "fe420bad-a166-4380-b95a-f90ba43f737b",
+      "name": "Search Knowledge Base",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        768,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are a helpful, professional CIS 91 Course & IT Support assistant.\nDraft a clear, polite email/chat reply to the student below.\n\nStudent Sender: {{ $json.sender }}\nSubject: {{ $json.subject }}\nMessage: {{ $json.message }}\nDetected Category: {{ $json.category }} (Confidence: {{ $json.confidence }})\n\nRelevant Knowledge Base Entries:\n{{ $json.matched_kb_text }}\n\nInstructions:\n1. Directly address the student's specific question using the Knowledge Base entries above when relevant.\n2. If Relevant Knowledge Base Entries says \"NO_DIRECT_KB_MATCH\", politely state that the topic is outside the automated FAQ scope and provide clear escalation steps (contact the instructor via Canvas Inbox or attend Tue/Thu 4:00-5:30 PM office hours).\n3. Keep the tone warm, concise, and professional, and include clear next steps.\n4. Return ONLY the plain-text reply message (no JSON wrapper)."
+      },
+      "id": "361d64de-0873-4bbf-9035-3ad1e56fab27",
+      "name": "Generate Reply",
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.5,
+      "position": [
+        1024,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "model": "deepseek/deepseek-v4.1-flash-1017",
+        "options": {
+          "temperature": 0.3
+        }
+      },
+      "id": "1fab633e-6f65-4076-a2d8-f73eeff029f4",
+      "name": "Responder Chat Model",
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        1024,
+        528
+      ],
+      "credentials": {
+        "openRouterApi": {
+          "id": "iDmE3I5vCWR1eQyl",
+          "name": "AA OpenRouter"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const prev = $('Search Knowledge Base').item.json;\nconst replyText = ($json.text || $json.output || $json.response || '').trim();\n\nreturn {\n  json: {\n    timestamp: prev.timestamp,\n    sender: prev.sender,\n    subject: prev.subject,\n    original_message: prev.message,\n    category: prev.category,\n    confidence: prev.confidence,\n    matched_kb: prev.matched_kb_ids,\n    ai_response: replyText,\n    delivery_status: replyText ? 'delivered_via_webhook' : 'failed_empty_reply'\n  }\n};"
+      },
+      "id": "92cd2ac0-72c2-48ef-94a5-f86a728de49e",
+      "name": "Prepare Final Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        304
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: $json.delivery_status, category: $json.category, confidence: $json.confidence, matched_kb: $json.matched_kb, reply: $json.ai_response }) }}",
+        "options": {}
+      },
+      "id": "06b1e603-0f73-4853-b85d-1d58a2b3f493",
+      "name": "Send Webhook Reply",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        208
+      ]
+    },
+    {
+      "parameters": {
+        "dataTableId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "YpQk197v4JNafWnR"
+        },
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {
+              "id": "timestamp",
+              "displayName": "timestamp",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "dateTime",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "sender",
+              "displayName": "sender",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "subject",
+              "displayName": "subject",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "original_message",
+              "displayName": "original_message",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "category",
+              "displayName": "category",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "confidence",
+              "displayName": "confidence",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "number",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "matched_kb",
+              "displayName": "matched_kb",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "ai_response",
+              "displayName": "ai_response",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            },
+            {
+              "id": "delivery_status",
+              "displayName": "delivery_status",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "readOnly": false,
+              "removed": false
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "id": "79b7f9a7-d0fb-428a-a3aa-ec6d5895ec1a",
+      "name": "Log Interaction",
+      "type": "n8n-nodes-base.dataTable",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        432
+      ]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "aa-midterm-auto-responder",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.2,
+      "position": [
+        0,
+        304
+      ],
+      "id": "146f0660-503a-4c8b-99d8-8453f570ded4",
+      "name": "Incoming Message Webhook",
+      "webhookId": "8a735ff7-249f-4cb5-b62a-d9b0e591e22c"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Normalize Input": {
+      "main": [
+        [
+          {
+            "node": "Classify Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classify Message": {
+      "main": [
+        [
+          {
+            "node": "Search Knowledge Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Search Knowledge Base": {
+      "main": [
+        [
+          {
+            "node": "Generate Reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Reply": {
+      "main": [
+        [
+          {
+            "node": "Prepare Final Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Final Payload": {
+      "main": [
+        [
+          {
+            "node": "Send Webhook Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Interaction",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classifier Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Classify Message",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Classification Parser": {
+      "ai_outputParser": [
+        [
+          {
+            "node": "Classify Message",
+            "type": "ai_outputParser",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Responder Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Generate Reply",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Incoming Message Webhook": {
+      "main": [
+        [
+          {
+            "node": "Normalize Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "122045ad-1d7b-41d9-93ce-9ab8f519005b",
+  "meta": {
+    "instanceId": "74ee99bc740c6dac711ced63f616b978808d56ad1bdf9d964ab20472df081c38"
+  },
+  "nodeGroups": [],
+  "id": "0nY9XDuKWopKDx5Z",
+  "tags": []
+}
